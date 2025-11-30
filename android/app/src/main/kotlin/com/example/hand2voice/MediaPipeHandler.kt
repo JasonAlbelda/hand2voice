@@ -15,7 +15,6 @@ import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.holisticlandmarker.HolisticLandmarker
 import com.google.mediapipe.tasks.vision.holisticlandmarker.HolisticLandmarkerResult
 import java.io.ByteArrayOutputStream
-import java.util.Optional
 
 /**
  * Data class to hold extracted keypoints
@@ -102,15 +101,11 @@ class MediaPipeHandler(private val context: Context) {
             // Convert to MPImage
             val mpImage = BitmapImageBuilder(rotatedBitmap).build()
             
-            // Process with MediaPipe - use local variable to avoid smart cast issues
-            val landmarker = holisticLandmarker
-            if (landmarker != null) {
-                val result = landmarker.detect(mpImage)
-                // Extract and format keypoints
-                extractKeypoints(result)
-            } else {
-                null
-            }
+            // Process with MediaPipe
+            val result = holisticLandmarker!!.detect(mpImage)
+            
+            // Extract and format keypoints
+            extractKeypoints(result)
             
         } catch (e: Exception) {
             Log.e(TAG, "Frame processing error", e)
@@ -188,7 +183,6 @@ class MediaPipeHandler(private val context: Context) {
             // Fill with zeros if no landmarks detected
             repeat(21 * 3) { rightHand.add(0.0) }
         }
-        
         Log.d(TAG, "Extracted features - Pose: ${pose.size}, Left: ${leftHand.size}, Right: ${rightHand.size}")
         
         return ExtractedFeatures(
@@ -196,6 +190,13 @@ class MediaPipeHandler(private val context: Context) {
             leftHand = leftHand,
             rightHand = rightHand
         )
+    }
+    
+    /**
+     * Get the holistic landmarker instance for video processing
+     */
+    fun getHolisticLandmarker(): HolisticLandmarker? {
+        return if (isReady) holisticLandmarker else null
     }
     
     /**
@@ -210,8 +211,7 @@ class MediaPipeHandler(private val context: Context) {
      */
     fun release() {
         try {
-            val landmarker = holisticLandmarker
-            landmarker?.close()
+            holisticLandmarker?.close()
             holisticLandmarker = null
             isReady = false
             Log.d(TAG, "MediaPipe resources released")

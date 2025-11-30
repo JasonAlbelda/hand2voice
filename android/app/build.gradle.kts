@@ -25,6 +25,7 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 24
+        multiDexEnabled = true
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -36,6 +37,10 @@ android {
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }
+    }
+
+    aaptOptions {
+        noCompress("tflite")
     }
 }
 
@@ -62,4 +67,15 @@ dependencies {
     
     // Kotlin coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+
+    // TensorFlow Lite
+    // implementation("org.tensorflow:tensorflow-lite:2.17.0")
+    // implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
+    // implementation("org.tensorflow:tensorflow-lite-gpu:2.17.0")
+    implementation("com.google.ai.edge.litert:litert:1.0.1")
+
+    implementation("org.tensorflow:tensorflow-lite-select-tf-ops:2.16.1") {
+        exclude(group = "org.tensorflow", module = "tensorflow-lite")
+        exclude(group = "org.tensorflow", module = "tensorflow-lite-api")
+    }
 }

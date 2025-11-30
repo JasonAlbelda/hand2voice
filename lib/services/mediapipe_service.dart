@@ -95,6 +95,28 @@ class MediaPipeService {
     return [];
   }
   
+  /// Process entire video file and extract features
+  /// Returns list of feature maps for each frame
+  Future<List<Map<String, dynamic>>> processVideo(String videoPath) async {
+    try {
+      final List<dynamic> result = await _channel.invokeMethod('processVideo', {
+        'videoPath': videoPath,
+      });
+      
+      return result.map((frame) {
+        return {
+          'pose': List<double>.from(frame['pose']),
+          'leftHand': List<double>.from(frame['leftHand']),
+          'rightHand': List<double>.from(frame['rightHand']),
+        };
+      }).toList();
+      
+    } on PlatformException catch (e) {
+      print('Failed to process video: ${e.message}');
+      return [];
+    }
+  }
+  
   /// Release MediaPipe resources
   Future<void> releaseMediaPipe() async {
     try {
