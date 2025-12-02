@@ -1,118 +1,105 @@
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:typed_data';
+import 'package:image_picker/image_picker.dart';
+import '../screens/camera_screen.dart';
+import '../screens/result_screen.dart';
 
-/// Service class that handles communication with native Android MediaPipe implementation
-class MediaPipeService {
-  // Define the method channel for communication between Flutter and Android
-  static const MethodChannel _channel = MethodChannel('com.example.hand2voice/mediapipe');
-  
-  /// Initialize MediaPipe Holistic model on native side
-  /// Returns true if initialization is successful
-  Future<bool> initializeMediaPipe() async {
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final ImagePicker _picker = ImagePicker();
+  static const platform = MethodChannel('com.hand2voice/mediapipe');
+  bool _isProcessing = false;
+
+  Future<void> _processVideo(String path) async {
+    setState(() => _isProcessing = true);
     try {
-      final bool result = await _channel.invokeMethod('initializeMediaPipe');
-      print('MediaPipe initialization result: $result');
-      return result;
-    } on PlatformException catch (e) {
-      print('Failed to initialize MediaPipe: ${e.message}');
-      return false;
-    }
-  }
-  
-  /// Process a single frame and extract keypoints
-  /// 
-  /// Parameters:
-  ///   - imageBytes: Raw image data as Uint8List
-  ///   - width: Image width in pixels
-  ///   - height: Image height in pixels
-  ///   - rotation: Camera rotation (0, 90, 180, 270)
-  /// 
-  /// Returns a Map containing:
-  ///   - 'success': boolean indicating if processing succeeded
-  ///   - 'pose': List of 132 values (33 landmarks × 4 coordinates)
-  ///   - 'leftHand': List of 63 values (21 landmarks × 3 coordinates)
-  ///   - 'rightHand': List of 63 values (21 landmarks × 3 coordinates)
-  ///   - 'totalFeatures': 258 (concatenated feature vector size)
-  Future<Map<String, dynamic>> processFrame({
-    required Uint8List imageBytes,
-    required int width,
-    required int height,
-    required int rotation,
-  }) async {
-    try {
-      final Map<dynamic, dynamic> result = await _channel.invokeMethod(
-        'processFrame',
-        {
-          'imageBytes': imageBytes,
-          'width': width,
-          'height': height,
-          'rotation': rotation,
-        },
+      // Call Android Native Code
+      print("Sending video to MediaPipe: $path");
+      final List<dynamic> result = await platform.invokeMethod(
+        'extractFeatures',
+        {'videoPath': path},
       );
-      
-      return {
-        'success': result['success'] as bool,
-        'pose': result['pose'] != null ? List<double>.from(result['pose']) : <double>[],
-        'leftHand': result['leftHand'] != null ? List<double>.from(result['leftHand']) : <double>[],
-        'rightHand': result['rightHand'] != null ? List<double>.from(result['rightHand']) : <double>[],
-        'totalFeatures': result['totalFeatures'] as int? ?? 0,
-      };
+
+      print("Feature Extraction Complete. Frames processed: ${result.length}");
+      // Navigate to result screen to show output
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                ResultScreen(videoPath: path, extractedData: result),
+          ),
+        );
+      }
     } on PlatformException catch (e) {
-      print('Failed to process frame: ${e.message}');
-      return {
-        'success': false,
-        'pose': <double>[],
-        'leftHand': <double>[],
-        'rightHand': <double>[],
-        'totalFeatures': 0,
-      };
+      print("Failed to extract features: '${e.message}'.");
+    } finally {
+      setState(() => _isProcessing = false);
     }
   }
-  
-  /// Get concatenated feature vector (all keypoints flattened)
-  /// Returns a List<double> of size 258
-  Future<List<double>> getConcatenatedFeatures({
-    required Uint8List imageBytes,
-    required int width,
-    required int height,
-    required int rotation,
-  }) async {
-    final result = await processFrame(
-      imageBytes: imageBytes,
-      width: width,
-      height: height,
-      rotation: rotation,
+
+  Future<void> _importVideo() async {
+    final XFile? video = await _picker.pickVideo(source: ImageSource.gallery);
+    if (video != null) {
+      _processVideo(video.path);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Hand2Voice FSL")),
+      body: Center(
+        child: _isProcessing
+            ? const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 20),
+                  Text("Extracting MediaPipe Features..."),
+                ],
+              )
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.video_library),
+                    label: const Text("Import Video"),
+                    onPressed: _importVideo,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.all(20),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.camera_alt),
+                    label: const Text("Record Action"),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => CameraScreen(
+                            onVideoRecorded: (path) {
+                              Navigator.pop(context); // Close camera
+                              _processVideo(path); // Process result
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.all(20),
+                    ),
+                  ),
+                ],
+              ),
+      ),
     );
-    
-    if (result['success']) {
-      final List<double> pose = result['pose'] as List<double>;
-      final List<double> leftHand = result['leftHand'] as List<double>;
-      final List<double> rightHand = result['rightHand'] as List<double>;
-      
-      return [...pose, ...leftHand, ...rightHand];
-    }
-    
-    return [];
-  }
-  
-  /// Release MediaPipe resources
-  Future<void> releaseMediaPipe() async {
-    try {
-      await _channel.invokeMethod('releaseMediaPipe');
-      print('MediaPipe resources released');
-    } on PlatformException catch (e) {
-      print('Failed to release MediaPipe: ${e.message}');
-    }
-  }
-  
-  /// Check if MediaPipe is initialized
-  Future<bool> isInitialized() async {
-    try {
-      final bool result = await _channel.invokeMethod('isInitialized');
-      return result;
-    } on PlatformException catch (e) {
-      print('Failed to check initialization: ${e.message}');
-      return false;
-    }
   }
 }

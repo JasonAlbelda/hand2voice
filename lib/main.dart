@@ -1,30 +1,28 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'screens/camera_screen.dart';
+import 'package:camera/camera.dart';
+import 'screens/home_screen.dart';
 
-void main() {
+List<CameraDescription> cameras = [];
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Lock orientation to portrait
-  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-
-  runApp(const FSLRecognitionApp());
+  try {
+    cameras = await availableCameras();
+  } on CameraException catch (e) {
+    print('Error initializing camera: $e');
+  }
+  runApp(const Hand2VoiceApp());
 }
 
-class FSLRecognitionApp extends StatelessWidget {
-  const FSLRecognitionApp({Key? key}) : super(key: key);
+class Hand2VoiceApp extends StatelessWidget {
+  const Hand2VoiceApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'FSL Recognition',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        useMaterial3: true,
-        appBarTheme: const AppBarTheme(centerTitle: true, elevation: 0),
-      ),
-      home: const CameraScreen(),
+      title: 'Hand2Voice',
+      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+      home: const HomeScreen(),
     );
   }
 }

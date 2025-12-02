@@ -37,6 +37,10 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+   aaptOptions {
+        noCompress("tflite", "lite", "task")
+    }
 }
 
 flutter {
@@ -55,6 +59,7 @@ dependencies {
 
     // MediaPipe Solutions
     implementation("com.google.mediapipe:tasks-vision:0.10.14")
+    // implementation("com.google.mediapipe:solution-holistic:0.8.10") 
     
     // Image processing
     implementation("androidx.camera:camera-core:1.3.0")
