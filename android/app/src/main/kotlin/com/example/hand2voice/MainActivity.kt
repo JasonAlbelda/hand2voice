@@ -21,6 +21,8 @@ class MainActivity : FlutterActivity() {
 
     private var eventSink: EventChannel.EventSink? = null
 
+    @Volatile private var isCancelled = false
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
@@ -41,30 +43,36 @@ class MainActivity : FlutterActivity() {
                 )
 
         // Setup Method Call
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, METHOD_CHANNEL_NAME)
-                .setMethodCallHandler { call, result ->
-                    if (call.method == "extractFeatures") {
-                        val videoPath = call.argument<String>("videoPath")
-                        if (videoPath != null) {
-                            CoroutineScope(Dispatchers.IO).launch {
-                                try {
-                                    val features = processVideo(videoPath)
-                                    runOnUiThread { result.success(features) }
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                    runOnUiThread {
-                                        result.error("PROCESSING_ERROR", e.message, null)
-                                    }
-                                }
+    MethodChannel(flutterEngine.dartExecutor.binaryMessenger, METHOD_CHANNEL_NAME).setMethodCallHandler { call, result ->
+            if (call.method == "extractFeatures") {
+                val videoPath = call.argument<String>("videoPath")
+                // RESET FLAG
+                isCancelled = false 
+                
+                if (videoPath != null) {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            val features = processVideo(videoPath)
+                            if (!isCancelled) {
+                                runOnUiThread { result.success(features) }
+                            } else {
+                                runOnUiThread { result.error("CANCELLED", "User cancelled", null) }
                             }
-                        } else {
-                            result.error("INVALID_PATH", "Video path is null", null)
+                        } catch (e: Exception) {
+                            // ... error handling
                         }
-                    } else {
-                        result.notImplemented()
                     }
                 }
-    }
+            } 
+            else if (call.method == "cancelExtraction") {
+                isCancelled = true
+                result.success(true)
+            } 
+            else {
+                result.notImplemented()
+            }
+        }
+        }
 
     private fun processVideo(path: String): List<Map<String, Any>> {
         val retriever = MediaMetadataRetriever()
@@ -99,6 +107,9 @@ class MainActivity : FlutterActivity() {
 
             // 3. Process Frames
             while (currentTime < duration) {
+              if (isCancelled) {
+                break
+              }
                 // Update Flutter Progress
                 val percentage = ((currentTime.toDouble() / duration.toDouble()) * 100).toInt()
                 runOnUiThread { eventSink?.success(percentage) }

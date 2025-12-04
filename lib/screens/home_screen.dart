@@ -3,10 +3,12 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'camera_screen.dart';
 import 'result_screen.dart';
+import 'package:uuid/uuid.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,175 +19,228 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final ImagePicker _picker = ImagePicker();
+  final Uuid _uuid = const Uuid();
 
   // 1. Define Channels
   static const methodChannel = MethodChannel('com.hand2voice/mediapipe');
   static const eventChannel = EventChannel('com.hand2voice/progress');
+  final String serverBaseUrl = "http://192.168.1.2:5000";
 
   bool _isProcessing = false;
   int _progressPercent = 0;
   StreamSubscription? _progressSubscription;
+  bool _useOnlineProcessing = true;
+  String _statusMessage = "";
+
+  String? _currentRequestId;
 
   Future<void> _processVideo(String path) async {
     setState(() {
       _isProcessing = true;
       _progressPercent = 0;
+      _statusMessage = "Starting...";
     });
 
-    // 2. Start Listening to Progress Updates
-    _progressSubscription = eventChannel.receiveBroadcastStream().listen(
-      (event) {
-        if (event is int) {
-          setState(() {
-            _progressPercent = event;
-          });
+    dynamic results;
+
+    // 1. ONLINE ATTEMPT
+    if (_useOnlineProcessing) {
+      try {
+        results = await _extractOnline(path);
+      } catch (e) {
+        // If it was manually cancelled, don't fall back
+        if (_statusMessage == "Cancelled") return;
+
+        print("⚠️ Online failed/timed out: $e");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Server slow/error. Switching to Offline..."),
+              duration: Duration(seconds: 2),
+            ),
+          );
         }
-      },
-      onError: (error) {
-        print("Progress Stream Error: $error");
-      },
-    );
+      }
+    }
 
-    try {
-      print("--- STARTING FEATURE EXTRACTION ---");
-      // 3. Call Native Method
-      final List<dynamic> result = await methodChannel.invokeMethod(
-        'extractFeatures',
-        {'videoPath': path},
-      );
+    // 2. OFFLINE FALLBACK (If online failed or disabled)
+    if (results == null && _statusMessage != "Cancelled") {
+      try {
+        results = await _extractOffline(path);
+      } catch (e) {
+        if (e.toString().contains("CANCELLED")) {
+          print("Offline processing cancelled.");
+        } else {
+          _handleError("Offline Error: $e");
+        }
+        return;
+      }
+    }
 
-      // Stop listening to progress
-      _progressSubscription?.cancel();
-
-      print("--- EXTRACTION COMPLETE ---");
-      print("Total Frames Processed: ${result.length}");
-
-      // 4. PRINT COORDINATES TO TERMINAL
-      // _printCoordinates(result);
-
-       await _saveFeaturesToFile(result);
-
+    // 3. Success -> Navigate
+    if (results != null && results.isNotEmpty) {
+      await _saveFeaturesToFile(results);
       if (mounted) {
         setState(() => _isProcessing = false);
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) =>
-                ResultScreen(videoPath: path, extractedData: result),
+                ResultScreen(videoPath: path, extractedData: results!),
           ),
         );
       }
-    } on PlatformException catch (e) {
-      _progressSubscription?.cancel();
-      setState(() => _isProcessing = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Error: ${e.message}"),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+    } else {
+      _handleError("No features were extracted.");
     }
   }
 
-   Future<void> _saveFeaturesToFile(List<dynamic> data) async {
+  Future<dynamic> _extractOnline(String path) async {
+    _currentRequestId = _uuid.v4();
+    final uploadUrl = Uri.parse("$serverBaseUrl/process/$_currentRequestId");
+    final statusUrl = Uri.parse("$serverBaseUrl/status/$_currentRequestId");
+
+    // --- STEP 1: UPLOAD ---
+    setState(() => _statusMessage = "Uploading Video...");
+    print("--- ONLINE: UPLOADING ID: $_currentRequestId ---");
+
+    var request = http.MultipartRequest('POST', uploadUrl);
+    request.files.add(await http.MultipartFile.fromPath('video', path));
+
+    // Send request (waits for upload to finish)
+    final streamedResponse = await request.send().timeout(
+      const Duration(seconds: 60),
+    );
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode != 202) {
+      throw Exception(
+        "Upload Failed: ${response.statusCode} - ${response.body}",
+      );
+    }
+
+    // --- STEP 2: POLLING (CHECK STATUS) ---
+    print("--- UPLOAD DONE. POLLING FOR RESULTS... ---");
+    if (mounted) {
+      setState(() {
+        _statusMessage = "Extracting Features";
+      });
+    }
+
+    // Loop until done or timeout (e.g., 60 seconds max processing time)
+    int attempts = 0;
+    while (attempts < 60) {
+      // Check cancellation
+      if (_currentRequestId == null) throw Exception("Cancelled");
+
+      // Wait 1 second before checking
+      await Future.delayed(const Duration(seconds: 1));
+
+      try {
+        final statusResponse = await http.get(statusUrl);
+
+        if (statusResponse.statusCode == 200) {
+          final body = jsonDecode(statusResponse.body);
+          final status = body['status'];
+
+          if (status == 'done') {
+            print("✅ Processing Complete!");
+            return body;
+          } else if (status == 'failed') {
+            throw Exception("Server Processing Error: ${body['error']}");
+          } else if (status == 'cancelled') {
+            throw Exception("Cancelled by Server");
+          }
+        } else {
+          // 404 or other errors
+          print("Status check failed: ${statusResponse.statusCode}");
+        }
+      } catch (e) {
+        print("Polling error: $e");
+      }
+
+      attempts++;
+    }
+
+    throw Exception("Processing Timed Out");
+  }
+
+  Future<dynamic> _extractOffline(String path) async {
+    setState(() {
+      _statusMessage = "Processing on Device...";
+      _progressPercent = 0;
+    });
+
+    _progressSubscription = eventChannel.receiveBroadcastStream().listen((
+      event,
+    ) {
+      if (mounted) setState(() => _progressPercent = event);
+    });
+
+    try {
+      final List<dynamic> result = await methodChannel.invokeMethod(
+        'extractFeatures',
+        {'videoPath': path},
+      );
+      return result;
+    } finally {
+      _progressSubscription?.cancel();
+    }
+  }
+
+  Future<void> _cancelProcessing() async {
+    setState(() => _statusMessage = "Cancelled");
+
+    // 1. Cancel Offline
+    await methodChannel.invokeMethod('cancelExtraction');
+    _progressSubscription?.cancel();
+
+    // 2. Cancel Online
+    if (_currentRequestId != null) {
+      print("Sending Cancel Request for ID: $_currentRequestId");
+      try {
+        // Call the separate cancel endpoint
+        final cancelUrl = Uri.parse("$serverBaseUrl/cancel/$_currentRequestId");
+        await http.post(cancelUrl);
+      } catch (e) {
+        print("Failed to contact server for cancel: $e");
+      }
+      _currentRequestId = null;
+    }
+
+    // Reset UI
+    setState(() {
+      _isProcessing = false;
+      _progressPercent = 0;
+    });
+  }
+
+  void _handleError(String msg) {
+    print("❌ $msg");
+    setState(() => _isProcessing = false);
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
+    }
+  }
+
+  Future<void> _saveFeaturesToFile(dynamic data) async {
     try {
       final directory = await getApplicationDocumentsDirectory();
       final file = File('${directory.path}/extracted_landmarks.txt');
-      
+
       // Pretty print JSON
       JsonEncoder encoder = const JsonEncoder.withIndent('  ');
       String prettyprint = encoder.convert(data);
-      
+
       await file.writeAsString(prettyprint);
-      
+
       print("✅ DATA SAVED TO FILE:");
       print("📂 ${file.path}");
       print("You can inspect this file using Android Studio Device Explorer");
-      
     } catch (e) {
       print("❌ Failed to save file: $e");
-    }
-  }
-
-  void _printCoordinates(List<dynamic> data) {
-    if (data.isEmpty) {
-      print("No features extracted.");
-      return;
-    }
-
-    print("--------------------------------------------------");
-    print("      EXTRACTED LANDMARKS (HOLISTIC MODEL)        ");
-    print("--------------------------------------------------");
-
-    for (int i = 0; i < data.length; i++) {
-      final frame = data[i];
-      final ts = frame['timestamp'];
-      final features = frame['features'] as Map<dynamic, dynamic>;
-
-      print("\n=== FRAME $i (Timestamp: ${ts}ms) ===");
-
-      bool hasData = false;
-
-      // 1. PRINT POSE
-      if (features.containsKey('pose')) {
-        hasData = true;
-        final pose = features['pose'] as List<dynamic>;
-        print("  [BODY POSE] - ${pose.length ~/ 3} points detected");
-        
-        // Print the first point (Nose) and Shoulders as a sample to verify data
-        if (pose.length >= 39) { // Ensure enough points exist
-           _printPoint("Nose", pose, 0); 
-           _printPoint("Left Shoulder", pose, 11);
-           _printPoint("Right Shoulder", pose, 12);
-        }
-        // Uncomment the line below to dump ALL pose numbers (it will be huge)
-        // print("    Raw Data: $pose");
-      }
-
-      // 2. PRINT LEFT HAND
-      if (features.containsKey('left_hand')) {
-        hasData = true;
-        final left = features['left_hand'] as List<dynamic>;
-        print("  [LEFT HAND] - ${left.length ~/ 3} points detected");
-        
-        if (left.isNotEmpty) {
-           _printPoint("Wrist", left, 0);
-           _printPoint("Index Tip", left, 8);
-        }
-        print("    Raw Data (First 10 coords): ${left.take(10).toList()}...");
-      }
-
-      // 3. PRINT RIGHT HAND
-      if (features.containsKey('right_hand')) {
-        hasData = true;
-        final right = features['right_hand'] as List<dynamic>;
-        print("  [RIGHT HAND] - ${right.length ~/ 3} points detected");
-
-        if (right.isNotEmpty) {
-           _printPoint("Wrist", right, 0);
-           _printPoint("Index Tip", right, 8);
-        }
-        print("    Raw Data (First 10 coords): ${right.take(10).toList()}...");
-      }
-
-      if (!hasData) {
-        print("  (Frame processed but no skeleton detected)");
-      }
-    }
-    print("\n--------------------------------------------------");
-  }
-
-  // Helper to format a single point x,y,z cleanly
-  void _printPoint(String label, List<dynamic> data, int index) {
-    // Stride is 3 because data is [x, y, z, x, y, z...]
-    int offset = index * 3;
-    if (offset + 2 < data.length) {
-      double x = data[offset] as double;
-      double y = data[offset+1] as double;
-      double z = data[offset+2] as double;
-      print("    -> $label: [x: ${x.toStringAsFixed(4)}, y: ${y.toStringAsFixed(4)}, z: ${z.toStringAsFixed(4)}]");
     }
   }
 
@@ -216,19 +271,27 @@ class _HomeScreenState extends State<HomeScreen> {
                     const CircularProgressIndicator(),
                     const SizedBox(height: 20),
                     Text(
-                      "Extracting Features: $_progressPercent%",
+                      _statusMessage,
+                      textAlign: TextAlign.center,
                       style: const TextStyle(
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    // Linear Progress Bar
-                    LinearProgressIndicator(value: _progressPercent / 100.0),
-                    const SizedBox(height: 10),
-                    const Text(
-                      "Please wait, this may take a moment...",
-                      style: TextStyle(color: Colors.grey),
+                    const SizedBox(height: 20),
+                    if (_progressPercent > 0) ...[
+                      LinearProgressIndicator(value: _progressPercent / 100.0),
+                      Text("$_progressPercent%"),
+                    ],
+                    const SizedBox(height: 50),
+                    ElevatedButton.icon(
+                      onPressed: _cancelProcessing,
+                      icon: const Icon(Icons.cancel),
+                      label: const Text("Cancel"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent,
+                        foregroundColor: Colors.white,
+                      ),
                     ),
                   ],
                 ),
@@ -263,6 +326,32 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.all(20),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    width: 250,
+                    margin: const EdgeInsets.only(bottom: 30),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(50),
+                    ),
+                    child: SwitchListTile(
+                      title: _useOnlineProcessing
+                          ? const Text("Online")
+                          : const Text("Offline"),
+                      //subtitle: const Text("Faster, requires laptop server"),
+                      value: _useOnlineProcessing,
+                      onChanged: (val) =>
+                          setState(() => _useOnlineProcessing = val),
+                      secondary: Icon(
+                        _useOnlineProcessing ? Icons.cloud : Icons.cloud_off,
+                        color: _useOnlineProcessing ? Colors.blue : Colors.grey,
+                      ),
                     ),
                   ),
                 ],
