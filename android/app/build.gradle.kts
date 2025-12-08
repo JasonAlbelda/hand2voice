@@ -39,7 +39,7 @@ android {
     }
 
    aaptOptions {
-        noCompress("tflite", "lite", "task")
+        noCompress("tflite", "lite", "task", "json")
     }
 }
 
@@ -48,15 +48,6 @@ flutter {
 }
 
 dependencies {
-    // // MediaPipe Solutions
-    // implementation('com.google.mediapipe:tasks-vision:0.10.29')
-    //
-    // val camerax_version = "1.3.0"
-    // implementation("androidx.camera:camera-core:$camerax_version")
-    // implementation("androidx.camera:camera-camera2:$camerax_version")
-    // implementation("androidx.camera:camera-lifecycle:$camerax_version")
-    // implementation("androidx.camera:camera-view:$camerax_version")
-
     // MediaPipe Solutions
     implementation("com.google.mediapipe:tasks-vision:0.10.14")
     // implementation("com.google.mediapipe:solution-holistic:0.8.10") 
@@ -67,4 +58,9 @@ dependencies {
     
     // Kotlin coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+
+    // TFLite
+    implementation("org.tensorflow:tensorflow-lite:2.14.0")
+    // implementation("org.tensorflow:tensorflow-lite-select-tf-ops:2.14.0")
+    implementation("com.google.code.gson:gson:2.10.1")
 }

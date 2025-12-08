@@ -6,18 +6,23 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
-import 'camera_screen.dart';
-import 'result_screen.dart';
+import '../../scan/screens/camera_screen.dart';
+import '../../scan/screens/result_screen.dart';
 import 'package:uuid/uuid.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
+  // Expose a global key so other widgets (e.g., ScanScreen) can call
+  // methods on `HomeScreenState` (like `processVideo`). This is a
+  // pragmatic approach for this app's simple structure.
+  static final GlobalKey<HomeScreenState> globalKey = GlobalKey<HomeScreenState>();
+
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() => HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> {
   final ImagePicker _picker = ImagePicker();
   final Uuid _uuid = const Uuid();
 
@@ -34,7 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String? _currentRequestId;
 
-  Future<void> _processVideo(String path) async {
+  Future<void> processVideo(String path) async {
     setState(() {
       _isProcessing = true;
       _progressPercent = 0;
@@ -178,7 +183,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      final List<dynamic> result = await methodChannel.invokeMethod(
+      final dynamic result = await methodChannel.invokeMethod(
         'extractFeatures',
         {'videoPath': path},
       );
@@ -247,7 +252,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _importVideo() async {
     final XFile? video = await _picker.pickVideo(source: ImageSource.gallery);
     if (video != null) {
-      _processVideo(video.path);
+      processVideo(video.path);
     }
   }
 
@@ -318,7 +323,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           builder: (context) => CameraScreen(
                             onVideoRecorded: (path) {
                               Navigator.pop(context);
-                              _processVideo(path);
+                              processVideo(path);
                             },
                           ),
                         ),

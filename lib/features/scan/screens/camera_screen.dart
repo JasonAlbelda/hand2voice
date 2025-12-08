@@ -1,6 +1,6 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import '../main.dart';
+import 'package:hand2voice/main.dart';
 
 class CameraScreen extends StatefulWidget {
   final Function(String) onVideoRecorded;
@@ -126,4 +126,3 @@ class _CameraScreenState extends State<CameraScreen> {
     );
   }
 }
-

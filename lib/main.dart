@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'screens/home_screen.dart';
+import 'package:hand2voice/features/home/screens/home_screen.dart';
 
 List<CameraDescription> cameras = [];
 
@@ -22,7 +22,7 @@ class Hand2VoiceApp extends StatelessWidget {
     return MaterialApp(
       title: 'Hand2Voice',
       theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
-      home: const HomeScreen(),
+      home: HomeScreen(key: HomeScreen.globalKey),
     );
   }
 }
