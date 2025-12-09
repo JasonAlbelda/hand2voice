@@ -6,9 +6,7 @@ import 'package:hand2voice/features/scan/screens/processing_screen.dart';
 import 'package:hand2voice/features/scan/screens/result_screen.dart';
 import 'package:hand2voice/features/scan/widgets/speech_screen.dart';
 import 'package:hand2voice/features/study/screens/study_screen.dart';
-import 'package:hand2voice/features/study/widgets/quiz_view.dart';
 import 'package:intl/intl.dart';
-import 'package:hand2voice/features/scan/screens/scan_screen.dart';
 import 'package:hand2voice/features/history/history_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -201,16 +199,17 @@ class _HomeScreenState extends State<HomeScreen> {
         options: [
           // Option 1: Camera (Sign Language)
           SelectionOption(
-            label: "Sign Language",
-            description: "Translate gestures via Camera",
+            label: "Deaf to Non-Deaf",
+            description: "Translate FSL Using Your Camera.",
             icon: Icons.camera_alt_rounded,
             color: Colors.orange,
             onTap: _startCameraFlow, // Calls the function below
           ),
           // Option 2: Microphone (Speech to Text)
           SelectionOption(
-            label: "Speech to Text",
-            description: "Communicate with deaf users",
+            label: "Non-Deaf to Deaf",
+            description:
+                "Translate Speech to Text to Communicate with Deaf People.",
             icon: Icons.mic_rounded,
             color: Colors.blueAccent,
             onTap: _startSpeechFlow,
