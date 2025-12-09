@@ -6,7 +6,7 @@ class TranslationRecord {
   final String label; // The main predicted text (e.g., "Hello")
   final String videoPath;
   final DateTime timestamp;
-  final List<dynamic> rawEvents; // To restore the ResultScreen details
+  final dynamic rawEvents; // To restore the ResultScreen details
 
   TranslationRecord({
     required this.id,
@@ -32,7 +32,7 @@ class TranslationRecord {
       label: json['label'],
       videoPath: json['videoPath'],
       timestamp: DateTime.parse(json['timestamp']),
-      rawEvents: json['rawEvents'] ?? [],
+      rawEvents: json['rawEvents'],
     );
   }
 }

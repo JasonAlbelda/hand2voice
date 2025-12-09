@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+// import 'dart:io'; // File not needed for offline result reading anymore
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,7 +17,7 @@ class ProcessingScreen extends StatefulWidget {
   const ProcessingScreen({
     Key? key,
     required this.videoPath,
-    this.isOnlineMode = true,
+    required this.isOnlineMode,
   }) : super(key: key);
 
   @override
@@ -25,22 +25,18 @@ class ProcessingScreen extends StatefulWidget {
 }
 
 class _ProcessingScreenState extends State<ProcessingScreen> {
-  // === CONFIG ===
   final Uuid _uuid = const Uuid();
-  // Ensure this IP is correct for your network
   final String serverBaseUrl = "http://192.168.1.2:5000";
 
   static const methodChannel = MethodChannel('com.hand2voice/mediapipe');
   static const eventChannel = EventChannel('com.hand2voice/progress');
 
-  // === STATE ===
   String _statusMessage = "Initializing...";
   int _progressPercent = 0;
   String? _currentRequestId;
 
-  // Create a Client to manage the connection life-cycle.
-  // Calling .close() on this makes cancellation immediate.
-  http.Client? _client;
+  // Keep the Client for better online cancellation
+  http.Client _client = http.Client();
 
   StreamSubscription? _progressSubscription;
   bool _isCancelled = false;
@@ -53,21 +49,19 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
 
   Future<void> _startProcessing() async {
     dynamic results;
-    _client = http.Client(); // Initialize client
 
-    // 1. Try Online Mode
+    // 1. Try Online
     if (widget.isOnlineMode) {
       try {
         results = await _extractOnline(widget.videoPath);
       } catch (e) {
-        if (_isCancelled) return; // Stop if user cancelled
-
-        print("⚠️ Online failed: $e");
+        if (_isCancelled) return;
+        print("⚠️ Online Error: $e");
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text("Server offline. Switching to On-Device mode..."),
-              duration: Duration(seconds: 2),
+              content: Text("Falling back to Offline Mode..."),
+              duration: Duration(seconds: 1),
             ),
           );
         }
@@ -75,93 +69,61 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
     }
 
     // 2. Offline Fallback
-    // Run if results are missing AND user hasn't cancelled
     if (results == null && !_isCancelled) {
       try {
         results = await _extractOffline(widget.videoPath);
       } catch (e) {
-        if (!e.toString().contains("CANCELLED") && !_isCancelled) {
-          _handleError("Processing Failed: $e");
-        }
+        if (!_isCancelled) _handleError("Processing Failed: $e");
         return;
       }
     }
 
-    // 3. Success -> Save & Navigate
+    // 3. Save & Go
     if (results != null && !_isCancelled) {
       await _saveAndNavigate(results);
     }
   }
 
-  // --- ONLINE LOGIC ---
+  // --- ONLINE LOGIC (Kept same) ---
   Future<dynamic> _extractOnline(String path) async {
     _currentRequestId = _uuid.v4();
     final uploadUrl = Uri.parse("$serverBaseUrl/process/$_currentRequestId");
     final statusUrl = Uri.parse("$serverBaseUrl/status/$_currentRequestId");
 
-    // A. ESTABLISH CONNECTION (PING)
-    if (_isCancelled) throw Exception("Cancelled");
-    setState(() => _statusMessage = "Establishing connection...");
-
-    try {
-      // Ping the server root or health check
-      // Timeout set to 30 seconds as requested
-      final healthCheck = await _client!
-          .get(Uri.parse(serverBaseUrl))
-          .timeout(const Duration(seconds: 30));
-
-      if (healthCheck.statusCode != 200 && healthCheck.statusCode != 404) {
-        // 404 is technically a response, meaning server is Alive but root path is empty.
-        // Connection refused or timeout throws an exception.
-        throw Exception("Server responded with ${healthCheck.statusCode}");
-      }
-    } catch (e) {
-      throw Exception("Connection Failed: $e");
-    }
-
-    // B. UPLOAD VIDEO
-    if (_isCancelled) throw Exception("Cancelled");
     setState(() => _statusMessage = "Uploading Video...");
 
-    // Create Request
     var request = http.MultipartRequest('POST', uploadUrl);
     request.files.add(await http.MultipartFile.fromPath('video', path));
 
-    // Send using the cancellable client
-    final streamedResponse = await _client!
+    final streamedResponse = await _client
         .send(request)
-        .timeout(const Duration(seconds: 60));
+        .timeout(const Duration(seconds: 300));
     final response = await http.Response.fromStream(streamedResponse);
 
-    if (response.statusCode != 202) throw Exception("Upload Failed");
+    if (response.statusCode != 202)
+      throw Exception("Server returned ${response.statusCode}");
 
-    // C. POLL FOR RESULTS
-    if (mounted) setState(() => _statusMessage = "Server Extracting...");
+    if (mounted) setState(() => _statusMessage = "Extracting Features...");
 
     int attempts = 0;
     while (attempts < 60) {
       if (_isCancelled) throw Exception("Cancelled");
-
-      // Wait 1 second
       await Future.delayed(const Duration(seconds: 1));
 
       try {
-        final statusResponse = await _client!.get(statusUrl);
-        if (statusResponse.statusCode == 200) {
-          final body = jsonDecode(statusResponse.body);
-          if (body['status'] == 'done') return body; // Return Map
+        final resp = await _client.get(statusUrl);
+        if (resp.statusCode == 200) {
+          final body = jsonDecode(resp.body);
+          if (body['status'] == 'done') return body;
           if (body['status'] == 'failed') throw Exception(body['error']);
-          if (body['status'] == 'cancelled') throw Exception("Cancelled");
         }
-      } catch (_) {
-        // Ignore polling errors (retry)
-      }
+      } catch (_) {}
       attempts++;
     }
     throw Exception("Timeout");
   }
 
-  // --- OFFLINE LOGIC ---
+  // --- REVERTED OFFLINE LOGIC ---
   Future<dynamic> _extractOffline(String path) async {
     setState(() {
       _statusMessage = "Processing on Device...";
@@ -175,7 +137,8 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
     });
 
     try {
-      // Use dynamic to accept the Map returned by Kotlin
+      // Direct Native call. Returns Map directly.
+      // NOTE: This will crash if data > 1MB (TransactionTooLargeException)
       final dynamic result = await methodChannel.invokeMethod(
         'extractFeatures',
         {'videoPath': path},
@@ -186,7 +149,6 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
     }
   }
 
-  // --- SAVE & NAVIGATE ---
   Future<void> _saveAndNavigate(dynamic results) async {
     String mainLabel = "Unrecognized Sequence";
     if (results is Map && results['events'] != null) {
@@ -217,27 +179,19 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
   }
 
   Future<void> _cancelProcessing() async {
-    // 1. Set Flags
     _isCancelled = true;
     setState(() => _statusMessage = "Cancelling...");
 
-    // 2. Kill Network Immediately
-    _client?.close();
-
-    // 3. Kill Offline Processing
+    _client.close();
     await methodChannel.invokeMethod('cancelExtraction');
     _progressSubscription?.cancel();
 
-    // 4. Notify Server (Fire and forget, create new temporary client since old one is closed)
     if (_currentRequestId != null) {
       try {
-        await http
-            .post(Uri.parse("$serverBaseUrl/cancel/$_currentRequestId"))
-            .timeout(const Duration(seconds: 2));
+        http.post(Uri.parse("$serverBaseUrl/cancel/$_currentRequestId"));
       } catch (_) {}
     }
 
-    // 5. Exit Screen
     if (mounted) Navigator.pop(context);
   }
 
@@ -252,7 +206,7 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
 
   @override
   void dispose() {
-    _client?.close(); // Ensure client is closed on exit
+    _client.close();
     _progressSubscription?.cancel();
     super.dispose();
   }

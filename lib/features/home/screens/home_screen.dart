@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:hand2voice/features/dictionary/screens/dictionary_screen.dart';
-import 'package:hand2voice/features/home/widgets/selection_dialog.dart';
-import 'package:hand2voice/features/scan/screens/camera_screen.dart';
-import 'package:hand2voice/features/scan/screens/processing_screen.dart';
 import 'package:hand2voice/features/scan/screens/result_screen.dart';
 import 'package:hand2voice/features/scan/widgets/speech_screen.dart';
+import 'package:hand2voice/features/settings/screens/settings_screen.dart';
 import 'package:hand2voice/features/study/screens/study_screen.dart';
 import 'package:intl/intl.dart';
+// Import your widgets
+import 'package:hand2voice/features/home/widgets/selection_dialog.dart';
+import 'package:hand2voice/features/scan/screens/camera_screen.dart';
+import 'package:hand2voice/features/scan/screens/processing_screen.dart'; // Import the new screen
 import 'package:hand2voice/features/history/history_service.dart';
+// Note: scan_screen.dart is no longer needed if using the dialog approach
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,7 +20,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool _useOnlineProcessing = true; // Settings Toggle
+  bool _useOnlineProcessing = true;
   List<TranslationRecord> _history = [];
 
   @override
@@ -26,12 +29,110 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadHistory();
   }
 
-  // Reload history whenever screen becomes visible
   Future<void> _loadHistory() async {
     final data = await HistoryService.getHistory();
     setState(() => _history = data);
   }
 
+  // --- LOGIC: START TRANSLATION FLOW ---
+  void _showTranslateOptions() {
+    showDialog(
+      context: context,
+      builder: (context) => SelectionDialog(
+        title: "Select Input Method",
+        options: [
+          SelectionOption(
+            label: "Deaf to Non-Deaf",
+            description:
+                "Convert Actions to Text to Communicate with Deaf People.",
+            icon: Icons.camera_alt_rounded,
+            color: Colors.orange,
+            onTap: _startCameraFlow,
+          ),
+          SelectionOption(
+            label: "Non-Deaf to Deaf",
+            description:
+                "Convert Speech to Text to Communicate with Deaf People.",
+            icon: Icons.mic,
+            color: Colors.deepPurple,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => SpeechToTextScreen()),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _startCameraFlow() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CameraScreen(
+          onVideoRecorded: (path) {
+            Navigator.pop(context); // Close Camera
+            _goToProcessing(path);
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _goToProcessing(String path) async {
+    // Navigate to Processing Screen
+    // It will handle everything and return when done (or pushed replacement)
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProcessingScreen(
+          videoPath: path,
+          isOnlineMode: _useOnlineProcessing,
+        ),
+      ),
+    );
+    // Reload history when user comes back from ResultScreen
+    _loadHistory();
+  }
+
+  void _showStudyOptions() {
+    showDialog(
+      context: context,
+      builder: (context) => SelectionDialog(
+        title: "Study Method",
+        options: [
+          SelectionOption(
+            label: "Dictionary",
+            description: "See Available Sign Description.",
+            icon: Icons.camera_alt_rounded,
+            color: Colors.orange,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => DictionaryScreen()),
+              );
+            },
+          ),
+          SelectionOption(
+            label: "Quiz",
+            description: "Guess the Right Sign Language based on the Video.",
+            icon: Icons.video_library_rounded,
+            color: Colors.deepPurple,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => StudyScreen()),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- UI BUILD ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -53,7 +154,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.settings_outlined, size: 28),
-                    onPressed: _showSettingsDialog,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => SettingsScreen(),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -67,7 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       title: "Translate",
                       icon: Icons.cached,
                       color: Colors.orange,
-                      onTap: _showTranslateOptions, // <--- CHANGED THIS
+                      onTap: _showTranslateOptions,
                     ),
                   ),
                   const SizedBox(width: 15),
@@ -76,7 +184,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       title: "Study",
                       icon: Icons.book_outlined,
                       color: Colors.blue,
-                      onTap: _showStudyOptions, // <--- CHANGED THIS
+                      onTap: _showStudyOptions,
                     ),
                   ),
                 ],
@@ -122,6 +230,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // --- WIDGET HELPERS ---
   Widget _buildActionCard({
     required String title,
     required IconData icon,
@@ -156,6 +265,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHistoryItem(TranslationRecord item) {
+    // Helper to get count safely
+    int actionCount = 0;
+    if (item.rawEvents is List) {
+      actionCount = (item.rawEvents as List).length; // Old format
+    } else if (item.rawEvents is Map && item.rawEvents['events'] != null) {
+      actionCount = (item.rawEvents['events'] as List).length; // New format
+    }
+
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(vertical: 8),
       leading: Container(
@@ -173,9 +290,18 @@ class _HomeScreenState extends State<HomeScreen> {
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(fontWeight: FontWeight.bold),
       ),
-      subtitle: Text(
-        DateFormat('MMM d, h:mm a').format(item.timestamp),
-        style: const TextStyle(fontSize: 12, color: Colors.grey),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "$actionCount Actions Detected",
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          Text(
+            DateFormat('MMM d, h:mm a').format(item.timestamp),
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+        ],
       ),
       onTap: () {
         Navigator.push(
@@ -191,67 +317,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showTranslateOptions() {
-    showDialog(
-      context: context,
-      builder: (context) => SelectionDialog(
-        title: "Select Input Method",
-        options: [
-          // Option 1: Camera (Sign Language)
-          SelectionOption(
-            label: "Deaf to Non-Deaf",
-            description: "Translate FSL Using Your Camera.",
-            icon: Icons.camera_alt_rounded,
-            color: Colors.orange,
-            onTap: _startCameraFlow, // Calls the function below
-          ),
-          // Option 2: Microphone (Speech to Text)
-          SelectionOption(
-            label: "Non-Deaf to Deaf",
-            description:
-                "Translate Speech to Text to Communicate with Deaf People.",
-            icon: Icons.mic_rounded,
-            color: Colors.blueAccent,
-            onTap: _startSpeechFlow,
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showStudyOptions() {
-    showDialog(
-      context: context,
-      builder: (context) => SelectionDialog(
-        title: "Study Mode",
-        options: [
-          SelectionOption(
-            label: "Dictionary",
-            icon: Icons.menu_book_rounded,
-            color: Colors.purple,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => DictionaryScreen()),
-              );
-            },
-          ),
-          SelectionOption(
-            label: "Quiz",
-            icon: Icons.quiz_rounded,
-            color: Colors.teal,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => StudyScreen()),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showSettingsDialog() {
     showDialog(
       context: context,
@@ -262,7 +327,7 @@ class _HomeScreenState extends State<HomeScreen> {
             builder: (context, setStateInternal) {
               return SwitchListTile(
                 title: const Text("Use Online Server"),
-                subtitle: const Text("Use Laptop for prediction"),
+                subtitle: const Text("Process on Laptop"),
                 value: _useOnlineProcessing,
                 onChanged: (val) {
                   setStateInternal(() => _useOnlineProcessing = val);
@@ -280,41 +345,5 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       },
     );
-  }
-
-  void _startSpeechFlow() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const SpeechToTextScreen()),
-    );
-  }
-
-  void _startCameraFlow() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CameraScreen(
-          onVideoRecorded: (path) {
-            Navigator.pop(context); // Close Camera
-            // Go to Processing
-            _goToProcessing(path);
-          },
-        ),
-      ),
-    );
-  }
-
-  Future<void> _goToProcessing(String path) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ProcessingScreen(
-          videoPath: path,
-          isOnlineMode: _useOnlineProcessing,
-        ),
-      ),
-    );
-    // Reload history when coming back
-    _loadHistory();
   }
 }
