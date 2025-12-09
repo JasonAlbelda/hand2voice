@@ -16,8 +16,7 @@ class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
 
   static final List<Widget> _widgetOptions = <Widget>[
-    // Attach the global key so other widgets can access HomeScreenState
-    HomeScreen(key: HomeScreen.globalKey),
+    HomeScreen(),
     DictionaryScreen(),
     ScanScreen(),
     StudyScreen(),

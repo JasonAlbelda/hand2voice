@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:hand2voice/features/scan/widgets/speech_screen.dart';
 import 'package:hand2voice/features/scan/screens/camera_screen.dart';
-import 'package:hand2voice/features/home/screens/home_screen.dart';
+import 'package:hand2voice/features/scan/screens/processing_screen.dart'; // Import New Screen
 
 class ScanScreen extends StatefulWidget {
-  const ScanScreen({Key? key}) : super(key: key);
+  final bool isOnlineMode; // Receive preference from Home
+  const ScanScreen({Key? key, this.isOnlineMode = true}) : super(key: key);
 
   @override
   State<ScanScreen> createState() => _ScanScreenState();
@@ -15,22 +16,28 @@ class _ScanScreenState extends State<ScanScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-            builder: (context) => CameraScreen(
-              onVideoRecorded: (path) {
-                Navigator.pop(context);
-                // Call HomeScreen's processVideo via the global key.
-                HomeScreen.globalKey.currentState?.processVideo(path);
-              },
-            ),
+        builder: (context) => CameraScreen(
+          onVideoRecorded: (path) {
+            // 1. Close Camera
+            Navigator.pop(context);
+
+            // 2. Push Processing Screen (REPLACES ScanScreen temporarily in visual stack)
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ProcessingScreen(
+                  videoPath: path,
+                  isOnlineMode: widget.isOnlineMode,
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
 
   void _selectSpeechMode() {
-    //ScaffoldMessenger.of(context).showSnackBar(
-    //  const SnackBar(content: Text('Speech To Text feature coming soon!')),
-    //);
-
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => SpeechToTextScreen()),
@@ -39,12 +46,20 @@ class _ScanScreenState extends State<ScanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(body: _buildSelectionOverlay());
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Select Mode"),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
+      body: _buildSelectionOverlay(),
+    );
   }
 
+  // ... rest of your UI code (_buildSelectionOverlay, _buildOptionButton) stays the same ...
   Widget _buildSelectionOverlay() {
     return Container(
-      color: Colors.grey[700],
+      color: Colors.grey[200], // Changed to lighter color for better UI
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -74,23 +89,25 @@ class _ScanScreenState extends State<ScanScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Card(
-        elevation: 0,
-        color: Colors.grey[400],
+        elevation: 4,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Container(
           width: MediaQuery.of(context).size.width * 0.7,
-          height: 180,
+          height: 150,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: Colors.white,
+          ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 80, color: Colors.black54),
+              Icon(icon, size: 60, color: Colors.orange),
               const SizedBox(height: 10),
               Text(
                 label,
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black54,
                 ),
               ),
             ],

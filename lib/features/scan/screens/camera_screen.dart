@@ -1,6 +1,7 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:hand2voice/main.dart';
+import 'package:image_picker/image_picker.dart';
 
 class CameraScreen extends StatefulWidget {
   final Function(String) onVideoRecorded;
@@ -16,6 +17,7 @@ class _CameraScreenState extends State<CameraScreen> {
   bool _isRecording = false;
   int _selectedCameraIdx = 0;
   FlashMode _flashMode = FlashMode.off;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -39,9 +41,16 @@ class _CameraScreenState extends State<CameraScreen> {
     }
   }
 
-  void _toggleCamera() {
-    _selectedCameraIdx = (_selectedCameraIdx + 1) % cameras.length;
-    _initCamera(_selectedCameraIdx);
+  Future<void> _importVideo() async {
+    try {
+      final XFile? video = await _picker.pickVideo(source: ImageSource.gallery);
+      if (video != null) {
+        // Pass the file path exactly like a recorded video
+        widget.onVideoRecorded(video.path);
+      }
+    } catch (e) {
+      print("Error picking video: $e");
+    }
   }
 
   void _toggleFlash() async {
@@ -111,11 +120,11 @@ class _CameraScreenState extends State<CameraScreen> {
                 ),
                 IconButton(
                   icon: const Icon(
-                    Icons.flip_camera_ios,
+                    Icons.video_library_rounded, // Gallery Icon
                     color: Colors.white,
                     size: 30,
                   ),
-                  onPressed: _toggleCamera,
+                  onPressed: _importVideo,
                 ),
               ],
             ),

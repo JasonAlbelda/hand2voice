@@ -22,7 +22,7 @@ class Hand2VoiceApp extends StatelessWidget {
     return MaterialApp(
       title: 'Hand2Voice',
       theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
-      home: HomeScreen(key: HomeScreen.globalKey),
+      home: HomeScreen(),
     );
   }
 }
