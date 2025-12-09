@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'package:hand2voice/common/providers/camera_provider.dart';
 import 'package:hand2voice/features/home/screens/home_screen.dart';
+import 'package:hand2voice/features/settings/providers/settings_provider.dart';
+import 'package:provider/provider.dart';
 
 List<CameraDescription> cameras = [];
 
@@ -11,7 +14,15 @@ Future<void> main() async {
   } on CameraException catch (e) {
     print('Error initializing camera: $e');
   }
-  runApp(const Hand2VoiceApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => CameraProvider()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()),
+      ],
+      child: const Hand2VoiceApp(),
+    ),
+  );
 }
 
 class Hand2VoiceApp extends StatelessWidget {

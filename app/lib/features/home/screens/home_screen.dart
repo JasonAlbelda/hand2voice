@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hand2voice/features/dictionary/screens/dictionary_screen.dart';
 import 'package:hand2voice/features/scan/screens/result_screen.dart';
 import 'package:hand2voice/features/scan/widgets/speech_screen.dart';
+import 'package:hand2voice/features/settings/providers/settings_provider.dart';
 import 'package:hand2voice/features/settings/screens/settings_screen.dart';
 import 'package:hand2voice/features/study/screens/study_screen.dart';
 import 'package:intl/intl.dart';
@@ -10,6 +11,7 @@ import 'package:hand2voice/features/home/widgets/selection_dialog.dart';
 import 'package:hand2voice/features/scan/screens/camera_screen.dart';
 import 'package:hand2voice/features/scan/screens/processing_screen.dart'; // Import the new screen
 import 'package:hand2voice/features/history/history_service.dart';
+import 'package:provider/provider.dart';
 // Note: scan_screen.dart is no longer needed if using the dialog approach
 
 class HomeScreen extends StatefulWidget {
@@ -68,29 +70,32 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _startCameraFlow() {
+    final isOnline = Provider.of<SettingsProvider>(
+      context,
+      listen: false,
+    ).isOnlineMode;
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => CameraScreen(
           onVideoRecorded: (path) {
             Navigator.pop(context); // Close Camera
-            _goToProcessing(path);
+            _goToProcessing(path, isOnline);
           },
         ),
       ),
     );
   }
 
-  Future<void> _goToProcessing(String path) async {
+  Future<void> _goToProcessing(String path, bool isOnline) async {
     // Navigate to Processing Screen
     // It will handle everything and return when done (or pushed replacement)
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ProcessingScreen(
-          videoPath: path,
-          isOnlineMode: _useOnlineProcessing,
-        ),
+        builder: (context) =>
+            ProcessingScreen(videoPath: path, isOnlineMode: isOnline),
       ),
     );
     // Reload history when user comes back from ResultScreen
