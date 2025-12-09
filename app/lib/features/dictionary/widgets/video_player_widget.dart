@@ -31,7 +31,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
     await _videoPlayerController.initialize();
 
     _chewieController = ChewieController(
-      allowMuting: true,
+      allowMuting: false,
       showControlsOnInitialize: false,
       videoPlayerController: _videoPlayerController.controller,
       autoPlay: true,
