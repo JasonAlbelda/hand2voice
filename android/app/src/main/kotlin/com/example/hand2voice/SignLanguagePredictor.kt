@@ -7,7 +7,7 @@ import com.google.gson.reflect.TypeToken
 import org.tensorflow.lite.Interpreter
 import java.io.File
 import java.io.FileOutputStream
-// import org.tensorflow.lite.flex.FlexDelegate
+import org.tensorflow.lite.flex.FlexDelegate
 
 class SignLanguagePredictor(context: Context) {
     private var interpreter: Interpreter? = null
@@ -39,7 +39,7 @@ class SignLanguagePredictor(context: Context) {
         }
         
         val options = Interpreter.Options()
-        // options.addDelegate(FlexDelegate()) // <--- ADD THIS LINE
+        options.addDelegate(FlexDelegate()) // <--- ADD THIS LINE
         
         interpreter = Interpreter(modelFile, options)
         interpreter?.resizeInput(0, intArrayOf(1, WINDOW_SIZE, FEATURE_DIM))

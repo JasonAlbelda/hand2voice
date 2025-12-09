@@ -47,10 +47,20 @@ flutter {
     source = "../.."
 }
 
+configurations.all {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "org.tensorflow" && requested.name.startsWith("tensorflow-lite")) {
+            if (requested.name != "tensorflow-lite-select-tf-ops") {
+                // Replace tensorflow-lite with litert, but keep select-tf-ops
+                useTarget("com.google.ai.edge.litert:litert:1.4.0")
+            }
+        }
+    }
+}
+
 dependencies {
     // MediaPipe Solutions
     implementation("com.google.mediapipe:tasks-vision:0.10.14")
-    // implementation("com.google.mediapipe:solution-holistic:0.8.10") 
     
     // Image processing
     implementation("androidx.camera:camera-core:1.3.0")
@@ -59,8 +69,13 @@ dependencies {
     // Kotlin coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
 
+    // LiteRT
+    implementation("com.google.ai.edge.litert:litert:1.4.0")
+    implementation("com.google.ai.edge.litert:litert-api:1.4.0")
+
     // TFLite
-    implementation("org.tensorflow:tensorflow-lite:2.14.0")
-    // implementation("org.tensorflow:tensorflow-lite-select-tf-ops:2.14.0")
+    // implementation("org.tensorflow:tensorflow-lite:2.16.1")
+    implementation("org.tensorflow:tensorflow-lite-select-tf-ops:2.16.1")
     implementation("com.google.code.gson:gson:2.10.1")
+
 }
