@@ -27,18 +27,18 @@ class _StudyScreenState extends State<StudyScreen> {
     );
 
     // This part remains the same. It will run after the quiz is finished.
-    if (result != null && result is Map<String, int>) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => QuizSummaryScreen(
-            correctAnswers: result['correct'] ?? 0,
-            wrongAnswers: result['wrong'] ?? 0,
-            totalQuestions: _numberOfQuestions.toInt(),
-          ),
-        ),
-      );
-    }
+    //if (result != null && result is Map<String, int>) {
+    //  Navigator.push(
+    //    context,
+    //    MaterialPageRoute(
+    //      builder: (context) => QuizSummaryScreen(
+    //        correctAnswers: result['correct'] ?? 0,
+    //        wrongAnswers: result['wrong'] ?? 0,
+    //        totalQuestions: _numberOfQuestions.toInt(),
+    //      ),
+    //    ),
+    //  );
+    //}
   }
 
   @override

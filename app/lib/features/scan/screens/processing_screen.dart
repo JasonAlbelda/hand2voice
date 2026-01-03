@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
-// import 'dart:io'; // File not needed for offline result reading anymore
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hand2voice/features/scan/screens/result_screen.dart';
+import 'package:hand2voice/features/settings/providers/settings_provider.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:hand2voice/features/history/history_service.dart';
@@ -26,7 +27,7 @@ class ProcessingScreen extends StatefulWidget {
 
 class _ProcessingScreenState extends State<ProcessingScreen> {
   final Uuid _uuid = const Uuid();
-  final String serverBaseUrl = "http://192.168.1.2:5000";
+  late String serverBaseUrl;
 
   static const methodChannel = MethodChannel('com.hand2voice/mediapipe');
   static const eventChannel = EventChannel('com.hand2voice/progress');
@@ -44,6 +45,11 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
   @override
   void initState() {
     super.initState();
+
+    serverBaseUrl = Provider.of<SettingsProvider>(
+      context,
+      listen: false,
+    ).serverUrl;
     _startProcessing();
   }
 

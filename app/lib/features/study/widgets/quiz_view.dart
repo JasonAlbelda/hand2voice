@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:hand2voice/features/study/models/quiz_question.dart';
+import 'package:hand2voice/features/study/screens/quiz_summary_screen.dart';
 import 'package:video_player/video_player.dart';
 import '../../dictionary/models/dictionary_entry.dart';
 import '../../dictionary/services/dictionary_service.dart';
@@ -45,6 +46,7 @@ class _QuizViewState extends State<QuizView> {
     _allEntries.shuffle(); // Shuffle once at the beginning
     //_generateQuestion();
     _playCurrentVideo();
+    _startTimer();
   }
 
   void _playCurrentVideo() {
@@ -135,10 +137,16 @@ class _QuizViewState extends State<QuizView> {
         _startTimer();
       });
     } else {
-      Navigator.pop(context, {
-        'correct': _correctAnswers,
-        'wrong': _wrongAnswers,
-      });
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => QuizSummaryScreen(
+            correctAnswers: _correctAnswers,
+            wrongAnswers: _wrongAnswers,
+            totalQuestions: widget.numberOfQuestions.length,
+          ),
+        ),
+      );
     }
   }
 
