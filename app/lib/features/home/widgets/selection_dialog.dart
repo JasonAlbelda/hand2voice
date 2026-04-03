@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hand2voice/core/theme/app_theme.dart';
 
 class SelectionDialog extends StatelessWidget {
   final String title;
@@ -10,34 +11,52 @@ class SelectionDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      backgroundColor: Colors.white,
-      elevation: 5,
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min, // Shrink to fit content
-          children: [
-            // Title
-            Text(
-              title,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      backgroundColor: AppTheme.cardBg,
+      elevation: 0,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppTheme.cardBg,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppTheme.borderColor),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Title
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textMain,
+                ),
+              ),
+              const SizedBox(height: 20),
 
-            // Options List
-            ...options
-                .map((option) => _buildOptionTile(context, option))
-                .toList(),
+              // Options List
+              ...options
+                  .map((option) => _buildOptionTile(context, option))
+                  .toList(),
 
-            const SizedBox(height: 10),
+              const SizedBox(height: 20),
 
-            // Cancel Button
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
-            ),
-          ],
+              // Cancel Button
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  "Cancel",
+                  style: TextStyle(
+                    color: AppTheme.textSub,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -45,33 +64,36 @@ class SelectionDialog extends StatelessWidget {
 
   Widget _buildOptionTile(BuildContext context, SelectionOption option) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 15),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: AppTheme.cardHover,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.borderColor.withOpacity(0.5)),
+      ),
       child: Material(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(15),
+        color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(16),
           onTap: () {
-            Navigator.pop(context); // Close dialog first
-            option.onTap(); // Execute action
+            Navigator.pop(context);
+            option.onTap();
           },
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+            padding: const EdgeInsets.all(16),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 5,
-                      ),
-                    ],
+                    color: Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(option.icon, color: option.color, size: 28),
+                  child: Icon(
+                    option.icon,
+                    color: option.color,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 15),
                 Expanded(
@@ -82,24 +104,22 @@ class SelectionDialog extends StatelessWidget {
                         option.label,
                         style: const TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textMain,
                         ),
                       ),
-                      if (option.description != null)
+                      if (option.description != null) ...[
+                        const SizedBox(height: 4),
                         Text(
                           option.description!,
                           style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
+                            fontSize: 11,
+                            color: AppTheme.textSub,
                           ),
                         ),
+                      ],
                     ],
                   ),
-                ),
-                const Icon(
-                  Icons.arrow_forward_ios,
-                  size: 16,
-                  color: Colors.grey,
                 ),
               ],
             ),

@@ -64,6 +64,24 @@ class _CameraScreenState extends State<CameraScreen> {
     });
   }
 
+  Future<void> _flipCamera() async {
+    if (cameras.length < 2) return;
+    
+    // Dispose current controller
+    await _controller?.dispose();
+    
+    // Toggle camera index
+    _selectedCameraIdx = (_selectedCameraIdx + 1) % cameras.length;
+    
+    // Initialize new camera
+    await _initCamera(_selectedCameraIdx);
+    
+    // Restore flash mode if needed
+    if (_flashMode != FlashMode.off) {
+      await _controller?.setFlashMode(_flashMode);
+    }
+  }
+
   Future<void> _recordVideo() async {
     if (_controller == null || !_controller!.value.isInitialized) return;
 
@@ -129,7 +147,27 @@ class _CameraScreenState extends State<CameraScreen> {
               ],
             ),
           ),
-          Positioned(top: 40, left: 10, child: BackButton(color: Colors.white)),
+          // Back button
+          Positioned(
+            top: 40,
+            left: 10,
+            child: BackButton(color: Colors.white),
+          ),
+          
+          // Flip camera button
+          Positioned(
+            top: 40,
+            right: 10,
+            child: IconButton(
+              icon: const Icon(
+                Icons.flip_camera_ios,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: _flipCamera,
+              tooltip: 'Flip Camera',
+            ),
+          ),
         ],
       ),
     );

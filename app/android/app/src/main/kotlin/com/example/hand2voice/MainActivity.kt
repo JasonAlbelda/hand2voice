@@ -2,7 +2,8 @@ package com.example.hand2voice
 
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
-import io.flutter.embedding.android.FlutterActivity
+import android.view.WindowManager
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
@@ -18,15 +19,34 @@ import java.util.ArrayDeque
 import kotlin.math.max
 import android.util.Log
 
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
     private val METHOD_CHANNEL_NAME = "com.hand2voice/mediapipe"
     private val EVENT_CHANNEL_NAME = "com.hand2voice/progress"
+    private val SCREEN_SECURITY_CHANNEL = "com.hand2voice/screen_security"
     
     private var eventSink: EventChannel.EventSink? = null
     @Volatile private var isCancelled = false
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        // Screen Security Channel
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SCREEN_SECURITY_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "enableSecureFlag" -> {
+                    window.setFlags(
+                        WindowManager.LayoutParams.FLAG_SECURE,
+                        WindowManager.LayoutParams.FLAG_SECURE
+                    )
+                    result.success(true)
+                }
+                "disableSecureFlag" -> {
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                    result.success(true)
+                }
+                else -> result.notImplemented()
+            }
+        }
 
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, EVENT_CHANNEL_NAME).setStreamHandler(
             object : EventChannel.StreamHandler {
