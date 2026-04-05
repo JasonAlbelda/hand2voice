@@ -173,7 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     // Action Cards
                     _buildActionCard(
                       title: "Translate Sign",
-                      subtitle: "Real-time ASL detection",
+                      subtitle: "Real-time FSL detection",
                       icon: Icons.upload_rounded,
                       color: AppTheme.accentPurple,
                       onTap: _showTranslateOptions,

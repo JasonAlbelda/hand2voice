@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:hand2voice/core/theme/app_theme.dart';
 
 class SpeechToTextScreen extends StatefulWidget {
   const SpeechToTextScreen({super.key});
@@ -59,7 +60,6 @@ class _SpeechToTextScreenState extends State<SpeechToTextScreen> {
 
   // Function to show a dialog for text input
   Future<void> _showTextInputDialog() async {
-    // Set the initial text in the controller
     _textEditingController.text = _lastWords == 'Tap Here to Type Something'
         ? ''
         : _lastWords;
@@ -68,11 +68,23 @@ class _SpeechToTextScreenState extends State<SpeechToTextScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Type your message'),
+          backgroundColor: AppTheme.cardBg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: const BorderSide(color: AppTheme.borderColor),
+          ),
+          title: const Text(
+            'Type your message',
+            style: TextStyle(color: AppTheme.textMain),
+          ),
           content: TextField(
             controller: _textEditingController,
             autofocus: true,
-            decoration: const InputDecoration(hintText: "Enter text here..."),
+            style: const TextStyle(color: AppTheme.textMain),
+            decoration: const InputDecoration(
+              hintText: "Enter text here...",
+              hintStyle: TextStyle(color: AppTheme.textSub),
+            ),
           ),
           actions: <Widget>[
             TextButton(
@@ -81,7 +93,7 @@ class _SpeechToTextScreenState extends State<SpeechToTextScreen> {
                 Navigator.pop(context);
               },
             ),
-            TextButton(
+            ElevatedButton(
               child: const Text('OK'),
               onPressed: () {
                 setState(() {
@@ -99,71 +111,130 @@ class _SpeechToTextScreenState extends State<SpeechToTextScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[200],
-      appBar: AppBar(
-        leading: const BackButton(color: Colors.black),
-        title: const Text(
-          'Speech to Text',
-          style: TextStyle(color: Colors.black),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: ActionChip(
-              avatar: const Icon(
-                Icons.volume_up_outlined,
-                size: 20,
-                weight: 12,
+      backgroundColor: AppTheme.appBg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: const Icon(
+                      Icons.arrow_back,
+                      color: AppTheme.textMain,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  const Text(
+                    'Speech to Text',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textMain,
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accentPurple.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppTheme.accentPurple),
+                    ),
+                    child: GestureDetector(
+                      onTap: _speak,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(
+                            Icons.volume_up,
+                            size: 18,
+                            color: AppTheme.accentPurple,
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'TTS',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.accentPurple,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              label: const Text(
-                'TTS',
-                style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+
+            // Content
+            Expanded(
+              child: GestureDetector(
+                onTap: _showTextInputDialog,
+                child: Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: AppTheme.cardBg,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppTheme.borderColor),
+                  ),
+                  child: Center(
+                    child: Text(
+                      _speechToText.isListening ? 'Listening...' : _lastWords,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w500,
+                        color: _speechToText.isListening 
+                            ? AppTheme.accentTeal 
+                            : AppTheme.textMain,
+                      ),
+                    ),
+                  ),
+                ),
               ),
-              onPressed: _speak, // Trigger TTS
             ),
-          ),
-        ],
-      ),
-      body: GestureDetector(
-        onTap: _showTextInputDialog, // Open text input dialog
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              _speechToText.isListening ? 'Listening...' : _lastWords,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 28.0,
-                fontWeight: FontWeight.bold,
+
+            // Bottom mic button
+            Container(
+              padding: const EdgeInsets.all(24),
+              child: Container(
+                width: 70,
+                height: 70,
+                decoration: BoxDecoration(
+                  color: _speechToText.isListening 
+                      ? Colors.red.withOpacity(0.15)
+                      : AppTheme.cardBg,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: _speechToText.isListening 
+                        ? Colors.red 
+                        : AppTheme.borderColor,
+                    width: 2,
+                  ),
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    _speechToText.isNotListening ? Icons.mic : Icons.mic_off,
+                    color: _speechToText.isListening 
+                        ? Colors.red 
+                        : AppTheme.textMain,
+                    size: 32,
+                  ),
+                  onPressed: _speechToText.isNotListening
+                      ? _startListening
+                      : _stopListening,
+                ),
               ),
             ),
-          ),
-        ),
-      ),
-      bottomNavigationBar: Container(
-        height: 120,
-        width: double.infinity,
-        color: Colors.grey[300],
-        child: Center(
-          child: IconButton(
-            style: IconButton.styleFrom(
-              backgroundColor: _speechToText.isNotListening
-                  ? Colors.white
-                  : Colors.red,
-              shape: const CircleBorder(),
-              padding: const EdgeInsets.all(20),
-            ),
-            icon: Icon(
-              _speechToText.isNotListening ? Icons.mic_none : Icons.mic_off,
-              color: Colors.grey[800],
-            ),
-            iconSize: 40.0,
-            onPressed: _speechToText.isNotListening
-                ? _startListening
-                : _stopListening,
-          ),
+          ],
         ),
       ),
     );
