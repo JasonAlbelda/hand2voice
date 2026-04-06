@@ -8,6 +8,7 @@ import 'package:hand2voice/features/settings/providers/settings_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+import 'package:hand2voice/core/theme/app_theme.dart';
 
 import 'package:hand2voice/features/history/history_service.dart';
 
@@ -220,36 +221,93 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.appBg,
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: 20),
+              // Processing animation
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: AppTheme.cardBg,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppTheme.borderColor),
+                ),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: AppTheme.accentTeal,
+                    strokeWidth: 3,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              
+              // Status message
               Text(
                 _statusMessage,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textMain,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 16),
+              
+              // Progress indicator
               if (_progressPercent > 0) ...[
-                LinearProgressIndicator(value: _progressPercent / 100.0),
-                Text("$_progressPercent%"),
+                Container(
+                  width: double.infinity,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: AppTheme.cardBg,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: AppTheme.borderColor),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: _progressPercent / 100.0,
+                      backgroundColor: Colors.transparent,
+                      valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accentTeal),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "$_progressPercent%",
+                  style: TextStyle(
+                    color: AppTheme.textSub,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ],
-              const SizedBox(height: 30),
-              ElevatedButton.icon(
-                onPressed: _cancelProcessing,
-                icon: const Icon(Icons.cancel),
-                label: const Text("Cancel"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  foregroundColor: Colors.white,
+              const SizedBox(height: 40),
+              
+              // Cancel button
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                ),
+                child: ElevatedButton.icon(
+                  onPressed: _cancelProcessing,
+                  icon: const Icon(Icons.cancel_outlined),
+                  label: const Text("Cancel Processing"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.withOpacity(0.1),
+                    foregroundColor: Colors.red,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                 ),
               ),
             ],

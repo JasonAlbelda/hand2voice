@@ -104,7 +104,27 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   Widget build(BuildContext context) {
     if (_controller == null || !_controller!.value.isInitialized) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(
+                color: Colors.white,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                "Initializing Camera...",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     return Scaffold(
@@ -133,7 +153,14 @@ class _CameraScreenState extends State<CameraScreen> {
                 ),
                 FloatingActionButton(
                   backgroundColor: _isRecording ? Colors.red : Colors.white,
-                  child: Icon(_isRecording ? Icons.stop : Icons.videocam),
+                  foregroundColor: _isRecording ? Colors.white : Colors.black,
+                  child: AnimatedSwitcher(
+                    duration: Duration(milliseconds: 200),
+                    child: Icon(
+                      _isRecording ? Icons.stop : Icons.videocam,
+                      key: ValueKey(_isRecording),
+                    ),
+                  ),
                   onPressed: _recordVideo,
                 ),
                 IconButton(
@@ -147,7 +174,44 @@ class _CameraScreenState extends State<CameraScreen> {
               ],
             ),
           ),
-          // Back button
+          // Recording indicator overlay
+          if (_isRecording)
+            Positioned(
+              top: 50,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        "REC",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           Positioned(
             top: 40,
             left: 10,

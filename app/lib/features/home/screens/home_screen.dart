@@ -24,6 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _useOnlineProcessing = true;
   List<TranslationRecord> _history = [];
   int _selectedIndex = 0;
+  bool _isProcessingSelection = false;
 
   @override
   void initState() {
@@ -38,6 +39,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // --- LOGIC: START TRANSLATION FLOW ---
   void _showTranslateOptions() {
+    if (_isProcessingSelection) return; // Prevent multiple taps
+    
     showDialog(
       context: context,
       builder: (context) => SelectionDialog(
@@ -46,7 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
           SelectionOption(
             label: "Deaf to Non-Deaf",
             description:
-                "Convert Actions to Text to Communicate with Deaf People.",
+                "Convert Sign Language to Text for Communication.",
             icon: Icons.camera_alt_rounded,
             color: Colors.orange,
             onTap: _startCameraFlow,
@@ -54,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
           SelectionOption(
             label: "Non-Deaf to Deaf",
             description:
-                "Convert Speech to Text to Communicate with Deaf People.",
+                "Convert Speech to Text for Communication.",
             icon: Icons.mic,
             color: Colors.deepPurple,
             onTap: () {
@@ -69,23 +72,31 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _startCameraFlow() {
+  void _startCameraFlow() async {
+    setState(() => _isProcessingSelection = true);
+    
+    // Small delay to show loading state
+    await Future.delayed(Duration(milliseconds: 300));
+    
     final isOnline = Provider.of<SettingsProvider>(
       context,
       listen: false,
     ).isOnlineMode;
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CameraScreen(
-          onVideoRecorded: (path) {
-            Navigator.pop(context); // Close Camera
-            _goToProcessing(path, isOnline);
-          },
+    if (mounted) {
+      setState(() => _isProcessingSelection = false);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CameraScreen(
+            onVideoRecorded: (path) {
+              Navigator.pop(context); // Close Camera
+              _goToProcessing(path, isOnline);
+            },
+          ),
         ),
-      ),
-    );
+      );
+    }
   }
 
   Future<void> _goToProcessing(String path, bool isOnline) async {
@@ -171,12 +182,31 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Action Cards
-                    _buildActionCard(
-                      title: "Translate Sign",
-                      subtitle: "Real-time FSL detection",
-                      icon: Icons.upload_rounded,
-                      color: AppTheme.accentPurple,
-                      onTap: _showTranslateOptions,
+                    Stack(
+                      children: [
+                        _buildActionCard(
+                          title: "Translate Sign",
+                          subtitle: "Real-time FSL detection",
+                          icon: Icons.upload_rounded,
+                          color: AppTheme.accentPurple,
+                          onTap: _showTranslateOptions,
+                        ),
+                        if (_isProcessingSelection)
+                          Positioned.fill(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  color: AppTheme.accentPurple,
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     _buildActionCard(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
+import 'package:hand2voice/core/theme/app_theme.dart';
 
 import 'package:cached_video_player_plus/cached_video_player_plus.dart';
 
@@ -36,7 +37,14 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
       videoPlayerController: _videoPlayerController.controller,
       autoPlay: true,
       looping: true,
-      placeholder: Container(color: Colors.grey[300]),
+      placeholder: Container(
+        color: AppTheme.cardBg,
+        child: Center(
+          child: CircularProgressIndicator(
+            color: AppTheme.accentTeal,
+          ),
+        ),
+      ),
     );
 
     setState(() {
@@ -56,7 +64,27 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Container(
+              color: AppTheme.cardBg,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      color: AppTheme.accentTeal,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      "Loading video...",
+                      style: TextStyle(
+                        color: AppTheme.textSub,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
           : Chewie(controller: _chewieController),
     );
   }

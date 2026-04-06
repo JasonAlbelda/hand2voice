@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'dart:io';
+import 'package:hand2voice/core/theme/app_theme.dart';
 
 class ResultScreen extends StatefulWidget {
   final String videoPath;
@@ -113,11 +114,36 @@ class _ResultScreenState extends State<ResultScreen> {
     // Even if controller not init, show loading.
     // If init, show video immediately regardless of data.
     if (!_controller.value.isInitialized) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        backgroundColor: AppTheme.appBg,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(
+                color: AppTheme.accentTeal,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                "Loading video...",
+                style: TextStyle(
+                  color: AppTheme.textMain,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Result")),
+      backgroundColor: AppTheme.appBg,
+      appBar: AppBar(
+        title: const Text("Result"),
+        backgroundColor: AppTheme.appBg,
+        foregroundColor: AppTheme.textMain,
+      ),
       body: Column(
         children: [
           // ================= VIDEO AREA =================
@@ -153,15 +179,31 @@ class _ResultScreenState extends State<ResultScreen> {
                           left: 0,
                           right: 0,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            color: Colors.black54,
+                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.bottomCenter,
+                                end: Alignment.topCenter,
+                                colors: [
+                                  Colors.black.withOpacity(0.8),
+                                  Colors.transparent,
+                                ],
+                              ),
+                            ),
                             child: Text(
                               _currentLabel,
                               textAlign: TextAlign.center,
                               style: const TextStyle(
-                                color: Colors.greenAccent,
-                                fontSize: 24,
+                                color: Colors.white,
+                                fontSize: 20,
                                 fontWeight: FontWeight.bold,
+                                shadows: [
+                                  Shadow(
+                                    offset: Offset(0, 1),
+                                    blurRadius: 3,
+                                    color: Colors.black54,
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -177,72 +219,140 @@ class _ResultScreenState extends State<ResultScreen> {
           Expanded(
             flex: 2,
             child: Container(
-              color: Colors.white,
+              color: AppTheme.cardBg,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.all(16.0),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
                     child: Text(
                       "Detected Actions:",
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
+                        color: AppTheme.textMain,
                       ),
                     ),
                   ),
                   Expanded(
                     child: _events.isEmpty
                         ? _rawFrames.isEmpty
-                              ? const Center(
-                                  child: Text(
-                                    "No features extracted.",
-                                    style: TextStyle(color: Colors.red),
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.error_outline,
+                                        size: 48,
+                                        color: Colors.red.withOpacity(0.7),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        "No features extracted.",
+                                        style: TextStyle(
+                                          color: Colors.red.withOpacity(0.8),
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 )
-                              : const Center(
-                                  child: Text(
-                                    "Features extracted, but no specific actions recognized.",
-                                    style: TextStyle(color: Colors.grey),
+                              : Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.visibility_off,
+                                        size: 48,
+                                        color: AppTheme.textSub,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        "Features extracted, but no specific actions recognized.",
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: AppTheme.textSub,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 )
                         : ListView.separated(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             itemCount: _events.length,
-                            separatorBuilder: (_, __) => const Divider(),
+                            separatorBuilder: (_, __) => Divider(
+                              color: AppTheme.borderColor,
+                              height: 1,
+                            ),
                             itemBuilder: (context, index) {
                               final event = _events[index];
-                              return ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: Colors.blue.shade100,
-                                  child: Text("${index + 1}"),
+                              return Container(
+                                margin: const EdgeInsets.symmetric(vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.appBg,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: AppTheme.borderColor),
                                 ),
-                                title: Text(
-                                  event['label'],
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  "${event['start_time']}s - ${event['end_time']}s",
-                                ),
-                                trailing: Text(
-                                  "${(event['confidence'] * 100).toInt()}%",
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue,
-                                  ),
-                                ),
-                                onTap: () {
-                                  _controller.seekTo(
-                                    Duration(
-                                      milliseconds: (event['start_time'] * 1000)
-                                          .toInt(),
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.all(12),
+                                  leading: Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.accentTeal.withOpacity(0.2),
+                                      shape: BoxShape.circle,
                                     ),
-                                  );
-                                  _controller.play();
-                                },
+                                    child: Center(
+                                      child: Text(
+                                        "${index + 1}",
+                                        style: TextStyle(
+                                          color: AppTheme.accentTeal,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  title: Text(
+                                    event['label'],
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: AppTheme.textMain,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    "${event['start_time']}s - ${event['end_time']}s",
+                                    style: TextStyle(
+                                      color: AppTheme.textSub,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  trailing: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.accentPurple.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      "${(event['confidence'] * 100).toInt()}%",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.accentPurple,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                  onTap: () {
+                                    _controller.seekTo(
+                                      Duration(
+                                        milliseconds: (event['start_time'] * 1000)
+                                            .toInt(),
+                                      ),
+                                    );
+                                    _controller.play();
+                                  },
+                                ),
                               );
                             },
                           ),
