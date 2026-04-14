@@ -21,6 +21,7 @@ class _UnifiedLockScreenState extends State<UnifiedLockScreen>
   bool _showPinInput = false;
   bool _showPatternInput = false;
   String _errorMessage = '';
+  DateTime? _pausedTime;
 
   @override
   void initState() {
@@ -39,18 +40,28 @@ class _UnifiedLockScreenState extends State<UnifiedLockScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final authProvider = context.read<AuthProvider>();
     
-    // Lock app when it goes to background
+    // Record when app goes to background
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
-      if (authProvider.isAnyAuthEnabled) {
-        authProvider.logout();
-      }
+      _pausedTime = DateTime.now();
     }
-    // Require authentication when app comes back to foreground
+    // Check if we should lock when app comes back to foreground
     else if (state == AppLifecycleState.resumed) {
-      if (authProvider.isAnyAuthEnabled && !authProvider.isAuthenticated) {
-        _authenticate();
+      if (authProvider.isAnyAuthEnabled) {
+        // Only lock if app was in background for more than 2 seconds
+        // This prevents locking during quick transitions like file picker
+        if (_pausedTime != null) {
+          final duration = DateTime.now().difference(_pausedTime!);
+          if (duration.inSeconds > 2) {
+            authProvider.logout();
+          }
+        }
+        
+        if (!authProvider.isAuthenticated) {
+          _authenticate();
+        }
       }
+      _pausedTime = null;
     }
   }
 
