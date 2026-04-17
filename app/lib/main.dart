@@ -3,7 +3,7 @@ import 'package:camera/camera.dart';
 import 'package:hand2voice/common/providers/camera_provider.dart';
 import 'package:hand2voice/core/providers/biometric_provider.dart';
 import 'package:hand2voice/core/providers/auth_provider.dart';
-import 'package:hand2voice/core/providers/screen_security_provider.dart';
+// import 'package:hand2voice/core/providers/screen_security_provider.dart'; // REMOVED: Screen security disabled
 import 'package:hand2voice/core/providers/file_encryption_provider.dart';
 import 'package:hand2voice/core/services/onboarding_service.dart';
 import 'package:hand2voice/core/theme/app_theme.dart';
@@ -29,7 +29,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => BiometricProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
-        ChangeNotifierProvider(create: (_) => ScreenSecurityProvider()),
+        // ChangeNotifierProvider(create: (_) => ScreenSecurityProvider()), // REMOVED: Screen security disabled
         ChangeNotifierProvider(create: (_) => FileEncryptionProvider()),
       ],
       child: const Hand2VoiceApp(),
@@ -64,19 +64,20 @@ class _Hand2VoiceAppState extends State<Hand2VoiceApp> {
     await Future.wait([
       context.read<BiometricProvider>().initialize(),
       context.read<AuthProvider>().initialize(),
-      context.read<ScreenSecurityProvider>().initialize(),
+      // context.read<ScreenSecurityProvider>().initialize(), // REMOVED: Screen security disabled
       context.read<FileEncryptionProvider>().initialize(),
     ]);
 
     if (!mounted) return;
 
     // Auto-enable encryption features (always on)
-    final screenSecurityProvider = context.read<ScreenSecurityProvider>();
+    // final screenSecurityProvider = context.read<ScreenSecurityProvider>(); // REMOVED: Screen security disabled
     final fileEncryptionProvider = context.read<FileEncryptionProvider>();
     
-    if (!screenSecurityProvider.isScreenSecurityEnabled) {
-      await screenSecurityProvider.toggleScreenSecurity(true);
-    }
+    // REMOVED: Screen security auto-enable
+    // if (!screenSecurityProvider.isScreenSecurityEnabled) {
+    //   await screenSecurityProvider.toggleScreenSecurity(true);
+    // }
     
     if (!fileEncryptionProvider.isFileEncryptionEnabled) {
       await fileEncryptionProvider.toggleFileEncryption(true);

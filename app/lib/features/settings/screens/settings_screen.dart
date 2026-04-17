@@ -157,11 +157,12 @@ class SettingsScreen extends StatelessWidget {
                           'Data Encryption',
                           'All data is encrypted',
                         ),
-                        _buildSecurityItem(
-                          Icons.block,
-                          'Screen Security',
-                          'Screenshots blocked',
-                        ),
+                        // REMOVED: Screen Security feature
+                        // _buildSecurityItem(
+                        //   Icons.block,
+                        //   'Screen Security',
+                        //   'Screenshots blocked',
+                        // ),
                         _buildSecurityItem(
                           Icons.videocam_off,
                           'Video Encryption',

@@ -186,7 +186,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         _buildActionCard(
                           title: "Translate Sign",
-                          subtitle: "Real-time FSL detection",
+                          subtitle: "FSL detection",
                           icon: Icons.upload_rounded,
                           color: AppTheme.accentPurple,
                           onTap: _showTranslateOptions,
@@ -280,7 +280,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _buildNavItem(Icons.home, 0),
-                  _buildNavItem(Icons.access_time, 1),
+                  _buildNavItem(Icons.quiz, 1),
                   _buildNavItem(Icons.settings, 2),
                 ],
               ),
@@ -378,7 +378,12 @@ class _HomeScreenState extends State<HomeScreen> {
     return GestureDetector(
       onTap: () {
         setState(() => _selectedIndex = index);
-        if (index == 2) {
+        if (index == 1) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => StudyScreen()),
+          );
+        } else if (index == 2) {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const SettingsScreen()),
