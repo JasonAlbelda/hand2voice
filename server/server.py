@@ -6,6 +6,7 @@ import tensorflow as tf  # or 'import tflite_runtime.interpreter as tflite'
 from flask import Flask, request, jsonify
 import threading
 from collections import deque, Counter
+import json
 
 # ================= CONFIGURATION =================
 SHOW_PREVIEW = False
@@ -30,6 +31,7 @@ class SignLanguagePredictor:
         mean_path = os.path.join(model_dir, "mean.npy")
         std_path = os.path.join(model_dir, "std.npy")
         classes_path = os.path.join(model_dir, "classes.npy")
+        filipino_labels_path = os.path.join(model_dir, "filipino_labels.json")
 
         print("⏳ Loading TFLite Model...")
 
@@ -37,6 +39,15 @@ class SignLanguagePredictor:
         self.mean = np.load(mean_path)
         self.std = np.load(std_path)
         self.classes = np.load(classes_path, allow_pickle=True)
+        
+        # Load Filipino labels mapping
+        self.filipino_labels = {}
+        if os.path.exists(filipino_labels_path):
+            with open(filipino_labels_path, 'r', encoding='utf-8') as f:
+                self.filipino_labels = json.load(f)
+            print(f"✅ Loaded Filipino labels: {len(self.filipino_labels)} entries")
+        else:
+            print("⚠️ Filipino labels file not found, using default classes")
 
         # Load TFLite
         try:
@@ -73,6 +84,10 @@ class SignLanguagePredictor:
 
     def get_label(self, idx):
         if 0 <= idx < len(self.classes):
+            # Try to get Filipino label first
+            if self.filipino_labels and str(idx) in self.filipino_labels:
+                return self.filipino_labels[str(idx)]
+            # Fallback to original class name
             return str(self.classes[idx])
         return "Unknown"
 
